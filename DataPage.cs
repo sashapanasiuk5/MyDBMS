@@ -2,11 +2,8 @@
 
 namespace DataBase_BTree;
 
-public class DataPage: ISplitable<DataPage>,IBinarySerializable
+public class DataPage: DataBaseNode
 {
-    public const int Parameter=3;
-    public const int MaxSize = 2 * Parameter - 1;
-    public const int MinSize = Parameter - 1;
     private int _size;
     public SortedList<int, Record> _data;
     public DataPage()
@@ -21,7 +18,7 @@ public class DataPage: ISplitable<DataPage>,IBinarySerializable
         _data = data;
     }
 
-    public SplitResults<DataPage> Split()
+    public override SplitResults<DataBaseNode> Split()
     {
         int middleIndex = (_data.Count - 1) / 2 + 1;
         int middle = _data.GetKeyAtIndex(middleIndex-1);
@@ -31,7 +28,7 @@ public class DataPage: ISplitable<DataPage>,IBinarySerializable
         _data = new SortedList<int, Record>(_data.Take(middleIndex).ToDictionary(x => x.Key, x => x.Value));
         
         _size = middleIndex;
-        return new SplitResults<DataPage>(false, middle, this, new DataPage(secondPageData, secondPageSize));
+        return new SplitResults<DataBaseNode>(false, middle, this, new DataPage(secondPageData, secondPageSize));
     }
 
     public int StealFromSibling(DataPage sibling, bool isRightSibling)
@@ -62,7 +59,7 @@ public class DataPage: ISplitable<DataPage>,IBinarySerializable
         _size = _data.Count;
     }
 
-    public bool Add(Record record)
+    public override bool Add(Record record)
     {
         bool needToSplit = _size == MaxSize;
         _data.Add(record.Key, record);
@@ -90,7 +87,7 @@ public class DataPage: ISplitable<DataPage>,IBinarySerializable
         return _size > MinSize;
     }
 
-    public byte[] Serialize()
+    public override byte[] Serialize()
     {
         byte[] bytes = new byte[GetBinarySize()];
         BitConverter.GetBytes(_size).CopyTo(bytes,0);

@@ -19,46 +19,34 @@ public class DataBaseWriter
         _endOfDataPageArea = startOfDataPageArea;
     }
     
-    public int WriteIndexNode(IndexNode node)
+    public int WriteNode(DataBaseNode node)
     {
-        int nodePointer = _endOfIndexArea;
-        _stream.Seek(_endOfIndexArea, SeekOrigin.Begin);
-        _stream.Write(BitConverter.GetBytes(false));
+        bool isDataPage = node is DataPage;
+        int nodePointer = isDataPage ? _endOfDataPageArea : _endOfIndexArea;
+        _stream.Seek(nodePointer, SeekOrigin.Begin);
         byte[] bytes = node.Serialize();
-
+        _stream.Write(BitConverter.GetBytes(isDataPage));
         _stream.Write(bytes);
 
-        _endOfIndexArea = (int)_stream.Position;
+        if (isDataPage)
+        {
+            _endOfDataPageArea = (int)_stream.Position;
+        }
+        else
+        {
+            _endOfIndexArea = (int)_stream.Position;
+        }
         return nodePointer;
     }
     
-    public int WriteIndexNode(IndexNode node, int pointer)
+    public int WriteNode(DataBaseNode node, int pointer)
     {
+        bool isDataPage = node is DataPage;
         byte[] bytes = node.Serialize();
         _stream.Seek(pointer, SeekOrigin.Begin);
-        _stream.Write(BitConverter.GetBytes(false));
+        _stream.Write(BitConverter.GetBytes(isDataPage));
         _stream.Write(bytes);
         return pointer;
     }
-    
-    public int WriteDataPage(DataPage node)
-    {
-        int pointer = _endOfDataPageArea;
-        _stream.Seek(pointer, SeekOrigin.Begin);
-        _stream.Write(BitConverter.GetBytes(true));
-        byte[] bytes = node.Serialize();
-        _stream.Write(bytes);
-        
-        _endOfDataPageArea = (int)_stream.Position;
-        return pointer;
-    }
-    
-    public int WriteDataPage(DataPage node, int pointer)
-    {
-        byte[] bytes = node.Serialize();
-        _stream.Seek(pointer, SeekOrigin.Begin);
-        _stream.Write(BitConverter.GetBytes(true));
-        _stream.Write(bytes);
-        return pointer;
-    }
+
 }

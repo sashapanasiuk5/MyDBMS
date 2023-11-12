@@ -2,12 +2,8 @@
 
 namespace DataBase_BTree;
 
-public class IndexNode: ISplitable<IndexNode>, IBinarySerializable
+public class IndexNode: DataBaseNode
 {
-    public const int Parameter=3;
-    public const int MaxSize = 2 * Parameter - 1;
-    public const int MinSize = Parameter - 1;
-    
     public List<int> _childPointers;
     protected int _size;
     public SortedSet<int> _intermidiateKeys;
@@ -36,7 +32,7 @@ public class IndexNode: ISplitable<IndexNode>, IBinarySerializable
         return MaxSize * sizeof(int) + (MaxSize + 1) * sizeof(int) + sizeof(int) + sizeof(bool);
     }
 
-    public byte[] Serialize()
+    public override byte[] Serialize()
     {
         byte[] nodeInBytes = new byte[GetBinarySize()];
         bool isRoot = this is RootNode;
@@ -49,7 +45,7 @@ public class IndexNode: ISplitable<IndexNode>, IBinarySerializable
             index += sizeof(int);
         }
 
-        if (_size == 0)
+        if (_size == 0 && this is not RootNode)
             return nodeInBytes;
         
         for (int i = 0; i < _size+1; i++)
@@ -60,22 +56,22 @@ public class IndexNode: ISplitable<IndexNode>, IBinarySerializable
 
         return nodeInBytes;
     }
-    public bool Add(int key, int pointer)
+    public override bool Add(Record record)
     {
         bool needToSplit = _size == MaxSize;
         
-        _intermidiateKeys.Add(key);
+        _intermidiateKeys.Add(record.Key);
         
-        int index = _intermidiateKeys.ToList().IndexOf(key)+1;
+        int index = _intermidiateKeys.ToList().IndexOf(record.Key)+1;
         
         _size++;
         if (index == _childPointers.Count)
         {
-            _childPointers.Add(pointer);
+            _childPointers.Add(record.Value);
         }
         else
         {
-            _childPointers.Insert(index,pointer);  
+            _childPointers.Insert(index,record.Value);  
         }
 
         return needToSplit;
@@ -133,7 +129,7 @@ public class IndexNode: ISplitable<IndexNode>, IBinarySerializable
         return _childPointers[first];;
     }
 
-    public virtual SplitResults<IndexNode> Split()
+    public override SplitResults<DataBaseNode> Split()
     {
         int middleIndex = (_intermidiateKeys.Count - 1) / 2;
         int middleElement = _intermidiateKeys.ElementAt(middleIndex);
@@ -145,7 +141,7 @@ public class IndexNode: ISplitable<IndexNode>, IBinarySerializable
         _childPointers.RemoveRange(middleIndex+1, _childPointers.Count-middleIndex-1);
         _size = _intermidiateKeys.Count;
         IndexNode secondNode = new IndexNode(secondNodeData, secondNodePointers, secondNodeData.Count);
-        return new SplitResults<IndexNode>(false, middleElement, this, secondNode);
+        return new SplitResults<DataBaseNode>(false, middleElement, this, secondNode);
     }
 
     public (int firstPointer, int? secondPointer) GetPointerSiblings(int pointer)

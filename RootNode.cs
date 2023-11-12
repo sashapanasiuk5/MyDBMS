@@ -9,7 +9,7 @@ public class RootNode:IndexNode
 
     public RootNode(SortedSet<int> intermidiateKeys, List<int> childPointers, int size) : base(intermidiateKeys, childPointers, size){}
 
-    public override SplitResults<IndexNode> Split()
+    public override SplitResults<DataBaseNode> Split()
     {
         int middleIndex = (_intermidiateKeys.Count - 1) / 2;
         int middleElement = _intermidiateKeys.ElementAt(middleIndex);
@@ -29,8 +29,9 @@ public class RootNode:IndexNode
 
         IndexNode firstNode = new IndexNode(firstNodeData, firstPointers, firstNodeData.Count);
         IndexNode secondNode = new IndexNode(secondNodeData, secondPointers, secondNodeData.Count);
-        return new SplitResults<IndexNode>(true, middleElement, firstNode, secondNode);
+        return new SplitResults<DataBaseNode>(true, middleElement, firstNode, secondNode);
     }
+    
 
     public void AddSplitKey(int splitKey, int firstNodePointer , int secondNodePointer)
     {

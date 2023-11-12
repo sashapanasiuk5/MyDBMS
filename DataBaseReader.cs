@@ -15,7 +15,7 @@ public class DataBaseReader
         return ParseIndexNode(nodeInBytes);
     }*/
     
-    public object ReadNode(int position)
+    public DataBaseNode ReadNode(int position)
     {
         byte[] nodeInBytes;
         _stream.Seek(position, SeekOrigin.Begin);
