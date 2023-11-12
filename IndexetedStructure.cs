@@ -50,65 +50,56 @@ public class IndexetedStructure
     public void Create()
     {
         DataPage _firstDataPage = new DataPage();
-        int pointer = _writer.WriteDataPage(_firstDataPage);
+        int pointer = _writer.WriteNode(_firstDataPage);
         _root = new RootNode(pointer);
-        _writer.WriteIndexNode(_root);
+        _writer.WriteNode(_root);
     }
 
     public void Add(Record record)
     {
-        Stack<(IndexNode node, int pointer)> pagePath = new Stack<(IndexNode node, int pointer)>();
+        Stack<(DataBaseNode node, int pointer)> pagePath = new Stack<(DataBaseNode node, int pointer)>();
         pagePath.Push((_root,0));
-        (DataPage targetPage, int pagePointer) = IndexSeek(record.Key, _root, pagePath);
-        (bool isSplit, int splitKey, int splitNodePointer) = AddToPage(record, targetPage, pagePointer);
-        while (isSplit)
+        (DataBaseNode node, int nodePointer) = IndexSeek(record.Key, _root, pagePath);
+        bool isSplit = false;
+        do
         {
-            (IndexNode parentNode, int nodePointer) = pagePath.Pop();
-            (isSplit, splitKey, splitNodePointer) = TryAddSplitKey(splitKey, splitNodePointer, parentNode, nodePointer);
-        }
+            (isSplit, int splitKey, int splitNodePointer) = AddToNode(record, node, nodePointer);
+            
+            if (isSplit)
+            {
+                (node, nodePointer) = pagePath.Pop();
+                record = new Record(splitKey, splitNodePointer);
+            }
+        } while (isSplit);
     }
     
-    private (bool isSplited, int splitedKey, int splitedNodePointer) TryAddSplitKey(int splitKey, int splitedPagePointer,IndexNode node, int nodePointer)
+    private (bool isSplit, int splitKey, int splitNodePointer) AddToNode(Record record,DataBaseNode node, int nodePointer)
     {
-        bool needToSplit = node.Add(splitKey, splitedPagePointer);
+        bool needToSplit = node.Add(record);
         if (needToSplit)
         {
-            SplitResults<IndexNode> splitResults= node.Split();
+            SplitResults<DataBaseNode> splitResults= node.Split();
             if (splitResults.IsRootNode)
             {
-                int firstNodePointer = _writer.WriteIndexNode(splitResults.FirstSplitNode);
-                int secondNodePointer = _writer.WriteIndexNode(splitResults.SecondSplitNode);
+                int firstNodePointer = _writer.WriteNode(splitResults.FirstSplitNode);
+                int secondNodePointer = _writer.WriteNode(splitResults.SecondSplitNode);
                 ((RootNode)node).AddSplitKey(splitResults.SplitKey, firstNodePointer, secondNodePointer);
                 _root = ((RootNode)node);
             }
             else
             {
-                int splitedNodePointer = _writer.WriteIndexNode(splitResults.SecondSplitNode);
-                _writer.WriteIndexNode(node, nodePointer);
+                int splitedNodePointer = _writer.WriteNode(splitResults.SecondSplitNode);
+                _writer.WriteNode(node, nodePointer);
                 return (true, splitResults.SplitKey, splitedNodePointer);
             }
         }
-        _writer.WriteIndexNode(node, nodePointer);
+        _writer.WriteNode(node, nodePointer);
         return (false, 0, 0);
     }
-
-    private (bool isSplited, int middle, int splitedPagePointer) AddToPage(Record record, DataPage page, int pagePointer)
-    {
-        bool needToSplit = page.Add(record);
-        if(needToSplit)
-        {
-            SplitResults<DataPage> splitResults = page.Split();
-            int secondPagePointer = _writer.WriteDataPage(splitResults.SecondSplitNode);
-            _writer.WriteDataPage(page, pagePointer);
-            return (true, splitResults.SplitKey, secondPagePointer);
-        }
-        _writer.WriteDataPage(page, pagePointer);
-        return (false,0,0);
-    }
-    private (DataPage page, int pointer) IndexSeek(int key, IndexNode node, Stack<(IndexNode node, int pointer)> path)
+    private (DataPage page, int pointer) IndexSeek(int key, IndexNode node, Stack<(DataBaseNode node, int pointer)> path)
     {
         int pointer = node.FindPointer(key);
-        object nextNode = _reader.ReadNode(pointer);
+        DataBaseNode nextNode = _reader.ReadNode(pointer);
         if (nextNode is DataPage)
         {
             return ((DataPage)nextNode, pointer);
@@ -119,7 +110,7 @@ public class IndexetedStructure
 
     public Record Find(int key)
     {
-        DataPage page = IndexSeek(key, _root, new Stack<(IndexNode,int)>()).page;
+        DataPage page = IndexSeek(key, _root, new Stack<(DataBaseNode,int)>()).page;
         Record record = page.Find(key);
         if (record.Key != key)
             throw new Exception("Record doesnt exist");
@@ -130,8 +121,8 @@ public class IndexetedStructure
     
     
     public void Delete(int key)
-    {
-        Stack<(IndexNode node, int pointer)> pagePath = new Stack<(IndexNode node, int pointer)>();
+    {/*
+        Stack<(IndexNode node, int pointer)> pagePath = new Stack<(DataBaseNode node, int pointer)>();
         pagePath.Push((_root,0));
         (DataPage page, int pagePointer) = IndexSeek(key,_root, pagePath);
 
@@ -141,12 +132,12 @@ public class IndexetedStructure
         do
         {
             
-        } while (isMerged);
+        } while (isMerged);*/
     }
 
 
     private void DeleteFromPage(int key, DataPage page, int pagePointer, IndexNode pageParent, int parentPointer)
-    {
+    {/*
         bool needToMerge = page.Delete(key);
         
         while(needToMerge)
@@ -163,7 +154,7 @@ public class IndexetedStructure
             }
         }
         _writer.WriteDataPage(page, pagePointer);
-        return;
+        return;*/
     }
 
     private (bool result, DataPage sibling, int pointer) TrySplitSibling(int key, DataPage page, int pagePointer, IndexNode pageParent)
@@ -194,7 +185,7 @@ public class IndexetedStructure
         }
         int newKey = page.StealFromSibling(chosenSibling, isRightSibling);
         pageParent.SetNewKey(chosenPointer, pagePointer, newKey);
-        _writer.WriteDataPage(chosenSibling, chosenPointer);
+        _writer.WriteNode(chosenSibling, chosenPointer);
         return (true, chosenSibling, chosenPointer);
     }
     
