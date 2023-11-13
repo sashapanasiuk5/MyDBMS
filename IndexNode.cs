@@ -77,14 +77,70 @@ public class IndexNode: DataBaseNode
         return needToSplit;
     }
 
-    public bool Delete(int key, int pointer)
+    public override bool Delete(int pointer)
     {
-        bool needToMerge = _size == MinSize;
+        bool needToMerge = _size <= MinSize;
 
-        
+        int key = FindKey(pointer);
+        _intermidiateKeys.Remove(key);
+        _childPointers.Remove(pointer);
+        _size--;
         return needToMerge;
     }
 
+    public override int StealFromSibling(DataBaseNode siblingNode, bool isRightSibling, int SplitKey)
+    {
+        IndexNode sibling = (IndexNode)siblingNode;
+        SortedSet<int> unionKeys = new SortedSet<int>(_intermidiateKeys.Union(sibling._intermidiateKeys));
+        unionKeys.Add(SplitKey);
+
+        if (isRightSibling)
+        {
+            _childPointers.AddRange(sibling._childPointers);
+        }
+        else
+        {
+            _childPointers.InsertRange(0,sibling._childPointers);
+        }
+
+        int middleIndex = (unionKeys.Count - 1) / 2;
+        int middle = unionKeys.ElementAt(middleIndex);
+        if (isRightSibling)
+        {
+            ((IndexNode)sibling)._intermidiateKeys = new SortedSet<int>(unionKeys.Skip(middleIndex+1).ToList());
+            _intermidiateKeys = new SortedSet<int>(unionKeys.Take(middleIndex).ToList());
+
+            ((IndexNode)sibling)._childPointers =
+                _childPointers.GetRange(middleIndex + 1, _childPointers.Count - middleIndex - 1);
+            
+            _childPointers.RemoveRange(middleIndex + 1, _childPointers.Count - middleIndex - 1);
+        }
+        else
+        { 
+            _intermidiateKeys = new SortedSet<int>(unionKeys.Skip(middleIndex+1).ToList());
+            ((IndexNode)sibling)._intermidiateKeys = new SortedSet<int>(unionKeys.Take(middleIndex).ToList());
+            
+            ((IndexNode)sibling)._childPointers =
+                _childPointers.GetRange(0, _childPointers.Count - middleIndex - 1);
+            
+            _childPointers.RemoveRange(0, _childPointers.Count - middleIndex - 1);
+        }
+
+        sibling._size = sibling._intermidiateKeys.Count;
+        _size = _intermidiateKeys.Count;
+        return middle;
+    }
+
+    public bool HasKey(int key)
+    {
+        return _intermidiateKeys.Contains(key);
+    }
+
+    public void ReplaceKey(int oldKey, int newKey)
+    {
+        _intermidiateKeys.Remove(oldKey);
+        _intermidiateKeys.Add(newKey);
+    }
     public void SetNewKey(int fistPointer, int secondPointer, int key)
     {
         int firstPointerIndex = _childPointers.IndexOf(fistPointer);
@@ -92,6 +148,15 @@ public class IndexNode: DataBaseNode
         int index = (int)Math.Floor((double)(firstPointerIndex + secondPointerIndex) / 2);
         _intermidiateKeys.Remove(_intermidiateKeys.ElementAt(index));
         _intermidiateKeys.Add(key);
+    }
+
+    public virtual int FindKey(int pointer)
+    {
+        int index = _childPointers.IndexOf(pointer);
+        if (index == _childPointers.Count - 1)
+            return _intermidiateKeys.Last();
+
+        return _intermidiateKeys.ElementAt(index);
     }
     
     public virtual int FindPointer(int key)
@@ -143,13 +208,37 @@ public class IndexNode: DataBaseNode
         IndexNode secondNode = new IndexNode(secondNodeData, secondNodePointers, secondNodeData.Count);
         return new SplitResults<DataBaseNode>(false, middleElement, this, secondNode);
     }
+    public override bool CanSplit()
+    {
+        return _size > MinSize;
+    }
+    
+    public override void MergeWith(DataBaseNode siblingNode, int key, bool isRightSibling)
+    {
+        IndexNode sibling = (IndexNode)siblingNode;
+        _intermidiateKeys = new SortedSet<int>(_intermidiateKeys.Union(sibling._intermidiateKeys));
+        _intermidiateKeys.Add(key);
+        sibling._childPointers.Reverse();
+        foreach (var pointer in sibling._childPointers)
+        {
+            if (isRightSibling)
+            {
+                _childPointers.Insert(0, pointer);
+            }
+            else
+            {
+                _childPointers.Add(pointer);
+            }
+        }
+        _size = _intermidiateKeys.Count;
+    }
 
-    public (int firstPointer, int? secondPointer) GetPointerSiblings(int pointer)
+    public (int? firstPointer, int? secondPointer) GetPointerSiblings(int pointer)
     {
         int index = _childPointers.IndexOf(pointer);
         if (index == 0)
         {
-            return (_childPointers[1], null);
+            return (null, _childPointers[1]);
         }
         else if (index == _childPointers.Count - 1)
         {

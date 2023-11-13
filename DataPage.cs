@@ -31,15 +31,16 @@ public class DataPage: DataBaseNode
         return new SplitResults<DataBaseNode>(false, middle, this, new DataPage(secondPageData, secondPageSize));
     }
 
-    public int StealFromSibling(DataPage sibling, bool isRightSibling)
+    public override int StealFromSibling(DataBaseNode siblingNode, bool isRightSibling, int SplitKey)
     {
+        DataPage sibling = (DataPage)siblingNode;
         SortedList<int, Record> union = new SortedList<int, Record>(_data.Union(sibling._data).ToDictionary(x => x.Key, x => x.Value));
         
         int middleIndex = (union.Count - 1) / 2 + 1;
         int middle = union.GetKeyAtIndex(middleIndex-1);
         if (isRightSibling)
         {
-            sibling._data = new SortedList<int, Record>(union.Skip(middleIndex).ToDictionary(x => x.Key, x => x.Value));
+            ((DataPage)sibling)._data = new SortedList<int, Record>(union.Skip(middleIndex).ToDictionary(x => x.Key, x => x.Value));
             _data = new SortedList<int, Record>(union.Take(middleIndex).ToDictionary(x => x.Key, x => x.Value));
         }
         else
@@ -53,9 +54,10 @@ public class DataPage: DataBaseNode
         return middle;
     }
 
-    public void MergeWith(DataPage page)
+    public override void MergeWith(DataBaseNode siblingNode, int key, bool isRightSibling)
     {
-        _data = new SortedList<int, Record>(_data.Union(page._data).ToDictionary(x => x.Key, x => x.Value));
+        DataPage sibling = (DataPage)siblingNode;
+        _data = new SortedList<int, Record>(_data.Union(sibling._data).ToDictionary(x => x.Key, x => x.Value));
         _size = _data.Count;
     }
 
@@ -67,7 +69,7 @@ public class DataPage: DataBaseNode
         return needToSplit;
     }
 
-    public bool Delete(int key)
+    public override bool Delete(int key)
     {
         bool needToMerge = _size == MinSize;
         _size--;
@@ -82,9 +84,14 @@ public class DataPage: DataBaseNode
         return sizeof(int) + 2*MaxSize * sizeof(int);
     }
 
-    public bool CanSplit()
+    public override bool CanSplit()
     {
         return _size > MinSize;
+    }
+
+    public int GetLastKey()
+    {
+        return _data.Last().Key;
     }
 
     public override byte[] Serialize()

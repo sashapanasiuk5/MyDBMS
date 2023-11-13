@@ -57,7 +57,7 @@ public class IndexetedStructure
 
     public void Add(Record record)
     {
-        Stack<(DataBaseNode node, int pointer)> pagePath = new Stack<(DataBaseNode node, int pointer)>();
+        Stack<(IndexNode node, int pointer)> pagePath = new Stack<(IndexNode node, int pointer)>();
         pagePath.Push((_root,0));
         (DataBaseNode node, int nodePointer) = IndexSeek(record.Key, _root, pagePath);
         bool isSplit = false;
@@ -96,7 +96,7 @@ public class IndexetedStructure
         _writer.WriteNode(node, nodePointer);
         return (false, 0, 0);
     }
-    private (DataPage page, int pointer) IndexSeek(int key, IndexNode node, Stack<(DataBaseNode node, int pointer)> path)
+    private (DataPage page, int pointer) IndexSeek(int key, IndexNode node, Stack<(IndexNode node, int pointer)> path)
     {
         int pointer = node.FindPointer(key);
         DataBaseNode nextNode = _reader.ReadNode(pointer);
@@ -110,7 +110,7 @@ public class IndexetedStructure
 
     public Record Find(int key)
     {
-        DataPage page = IndexSeek(key, _root, new Stack<(DataBaseNode,int)>()).page;
+        DataPage page = IndexSeek(key, _root, new Stack<(IndexNode,int)>()).page;
         Record record = page.Find(key);
         if (record.Key != key)
             throw new Exception("Record doesnt exist");
@@ -121,72 +121,106 @@ public class IndexetedStructure
     
     
     public void Delete(int key)
-    {/*
-        Stack<(IndexNode node, int pointer)> pagePath = new Stack<(DataBaseNode node, int pointer)>();
+    {
+        Stack<(IndexNode node, int pointer)> pagePath = new Stack<(IndexNode node, int pointer)>();
         pagePath.Push((_root,0));
-        (DataPage page, int pagePointer) = IndexSeek(key,_root, pagePath);
+        (DataBaseNode node, int nodePointer) = IndexSeek(key,_root, pagePath);
 
+        
         (IndexNode parent, int parentPointer) = pagePath.Pop();
-        DeleteFromPage(key, page, pagePointer, parent, parentPointer);
-        bool isMerged = false;
-        do
+        bool needToMerge = DeleteFromNode(key, node, nodePointer, parent, parentPointer);
+        
+        while (needToMerge)
         {
-            
-        } while (isMerged);*/
+            node = parent;
+            nodePointer = parentPointer;
+            (parent, parentPointer) = pagePath.Pop();
+            needToMerge = DeleteFromNode(key, node, nodePointer, parent, parentPointer);
+        }
     }
 
 
-    private void DeleteFromPage(int key, DataPage page, int pagePointer, IndexNode pageParent, int parentPointer)
-    {/*
-        bool needToMerge = page.Delete(key);
-        
-        while(needToMerge)
+    private bool DeleteFromNode(int key, DataBaseNode node, int nodePointer, IndexNode nodeParent, int parentPointer)
+    {
+        bool needToMerge = true;
+        if(node is DataPage)
+            needToMerge = node.Delete(key);
+        if (needToMerge)
         {
-            (bool result, DataPage leftSibling, int siblingPointer) = TrySplitSibling(key, page, pagePointer, pageParent);
+            (bool result, DataBaseNode sibling, int siblingPointer, bool isRightSibling) = TryStealFromSibling( node, nodePointer, nodeParent, parentPointer);
             if (result)
             {
-                _writer.WriteIndexNode(pageParent, parentPointer);
+                _writer.WriteNode(nodeParent, parentPointer);
                 needToMerge = false;
             }
             else
             {
-                
+                int splitKey = nodeParent.FindKey(nodePointer);
+                needToMerge = nodeParent.Delete(nodePointer);
+                sibling.MergeWith(node, splitKey, isRightSibling);
+                if (nodeParent is RootNode)
+                {
+                    _writer.WriteNode(sibling, 0);
+                    _root = new RootNode((IndexNode)sibling);
+                    needToMerge = false;
+                }
+                else
+                {
+                    _writer.WriteNode(sibling, siblingPointer);
+                    _writer.WriteNode(nodeParent, parentPointer);
+                }
             }
         }
-        _writer.WriteDataPage(page, pagePointer);
-        return;*/
+
+        if (nodeParent.HasKey(key) && node is DataPage)
+        {
+            nodeParent.ReplaceKey(key, ((DataPage)node).GetLastKey());
+            _writer.WriteNode(nodeParent, parentPointer);
+        }
+
+        _writer.WriteNode(node, nodePointer);
+        return needToMerge;
     }
 
-    private (bool result, DataPage sibling, int pointer) TrySplitSibling(int key, DataPage page, int pagePointer, IndexNode pageParent)
+    private (bool isStolen, DataBaseNode sibling, int pointer,bool isRightSibling) TryStealFromSibling(DataBaseNode node, int nodePointer, IndexNode nodeParent, int parentPointer)
     {
-        (int? leftSiblingPointer, int? rightSiblingPointer) = pageParent.GetPointerSiblings(pagePointer);
-        DataPage chosenSibling = new DataPage();
-        int chosenPointer = leftSiblingPointer.Value;
+        (int? leftSiblingPointer, int? rightSiblingPointer) = nodeParent.GetPointerSiblings(nodePointer);
+        DataBaseNode chosenSibling = null;
+        int chosenPointer = 0;
         bool isRightSibling = false;
+        bool canSteel = false;
+        
+        
         if (leftSiblingPointer.HasValue)
         {
-            DataPage leftSibling = (DataPage)_reader.ReadNode(leftSiblingPointer.Value);
+            DataBaseNode leftSibling = _reader.ReadNode(leftSiblingPointer.Value);
+            chosenSibling = leftSibling;
+            chosenPointer = leftSiblingPointer.Value;
             if (leftSibling.CanSplit())
-            {
-                chosenSibling = leftSibling;
-                chosenPointer = leftSiblingPointer.Value;
-            }
+                canSteel = true;
         }
-
+        
         if (rightSiblingPointer.HasValue)
         {
-            DataPage rightSibling = (DataPage)_reader.ReadNode(rightSiblingPointer.Value);
+            DataBaseNode rightSibling = _reader.ReadNode(rightSiblingPointer.Value);
+            chosenSibling = rightSibling;
+            chosenPointer = rightSiblingPointer.Value;
+            isRightSibling = true;
             if (rightSibling.CanSplit())
-            {
-                chosenSibling = rightSibling;
-                chosenPointer = rightSiblingPointer.Value;
-                isRightSibling = true;
-            }
+                canSteel = true;
         }
-        int newKey = page.StealFromSibling(chosenSibling, isRightSibling);
-        pageParent.SetNewKey(chosenPointer, pagePointer, newKey);
-        _writer.WriteNode(chosenSibling, chosenPointer);
-        return (true, chosenSibling, chosenPointer);
+
+        if (canSteel)
+        {
+            int SplitKey = 0;
+            if (node is IndexNode)
+                SplitKey = nodeParent.FindKey(nodePointer);
+            int newKey = node.StealFromSibling(chosenSibling, isRightSibling, SplitKey);
+            nodeParent.SetNewKey(chosenPointer, nodePointer, newKey);
+            _writer.WriteNode(chosenSibling, chosenPointer);
+        }
+
+        return (canSteel, chosenSibling, chosenPointer, isRightSibling);
     }
     
     

@@ -7,6 +7,13 @@ public class RootNode:IndexNode
         _childPointers.Add(firstDataPagePointer);
     }
 
+    public RootNode(IndexNode node)
+    {
+        _childPointers = node._childPointers;
+        _intermidiateKeys = node._intermidiateKeys;
+        _size = _intermidiateKeys.Count;
+    }
+
     public RootNode(SortedSet<int> intermidiateKeys, List<int> childPointers, int size) : base(intermidiateKeys, childPointers, size){}
 
     public override SplitResults<DataBaseNode> Split()
