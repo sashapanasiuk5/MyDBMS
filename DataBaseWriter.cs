@@ -38,7 +38,6 @@ public class DataBaseWriter
         }
         return nodePointer;
     }
-    
     public int WriteNode(DataBaseNode node, int pointer)
     {
         bool isDataPage = node is DataPage;

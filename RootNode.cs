@@ -2,9 +2,13 @@
 
 public class RootNode:IndexNode
 {
-    public RootNode(int firstDataPagePointer)
+    
+    public RootNode(int firstDataPagePointer, int secondDataPagePointer, int splitKey)
     {
         _childPointers.Add(firstDataPagePointer);
+        _childPointers.Add(secondDataPagePointer);
+        _size = 1;
+        _intermidiateKeys.Add(splitKey);
     }
 
     public RootNode(IndexNode node)
@@ -12,6 +16,11 @@ public class RootNode:IndexNode
         _childPointers = node._childPointers;
         _intermidiateKeys = node._intermidiateKeys;
         _size = _intermidiateKeys.Count;
+    }
+
+    public override bool isMinimum()
+    {
+        return _size <= 1;
     }
 
     public RootNode(SortedSet<int> intermidiateKeys, List<int> childPointers, int size) : base(intermidiateKeys, childPointers, size){}
@@ -40,11 +49,9 @@ public class RootNode:IndexNode
     }
     
 
-    public void AddSplitKey(int splitKey, int firstNodePointer , int secondNodePointer)
+    public int GetFirstChildPointer()
     {
-        _intermidiateKeys.Add(splitKey);
-        _childPointers.Add(firstNodePointer);
-        _childPointers.Add(secondNodePointer);
+        return _childPointers.First();
     }
 
 

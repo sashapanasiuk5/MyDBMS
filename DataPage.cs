@@ -4,7 +4,6 @@ namespace DataBase_BTree;
 
 public class DataPage: DataBaseNode
 {
-    private int _size;
     public SortedList<int, Record> _data;
     public DataPage()
     {
@@ -69,26 +68,36 @@ public class DataPage: DataBaseNode
         return needToSplit;
     }
 
-    public override bool Delete(int key)
+    public void Delete(int key)
     {
-        bool needToMerge = _size == MinSize;
-        _size--;
-        _data.Remove(key);
-        return needToMerge;
+        if (_data.ContainsKey(key))
+        {
+            _size--;
+            _data.Remove(key);
+        }
+        else
+        {
+            throw new Exception("Key not found");
+        }
+
     }
 
-    public Record Find(int key) => _data[key];
+    public Record Find(int key)
+    {
+        if (_data.ContainsKey(key))
+        {
+            return _data[key];
+        }
+        else
+        {
+            throw new Exception("Record doesnt exist");
+        }
+    }
 
     public static int GetBinarySize()
     {
         return sizeof(int) + 2*MaxSize * sizeof(int);
     }
-
-    public override bool CanSplit()
-    {
-        return _size > MinSize;
-    }
-
     public int GetLastKey()
     {
         return _data.Last().Key;

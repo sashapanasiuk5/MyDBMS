@@ -5,14 +5,12 @@ namespace DataBase_BTree;
 public class IndexNode: DataBaseNode
 {
     public List<int> _childPointers;
-    protected int _size;
     public SortedSet<int> _intermidiateKeys;
     public IndexNode(SortedSet<int> intermidiateKeys, List<int> childPointers, int size): base()
     {
         _intermidiateKeys = intermidiateKeys;
         _childPointers = childPointers;
         _size = size;
-        
     }
 
     public IndexNode()
@@ -22,11 +20,6 @@ public class IndexNode: DataBaseNode
         _size = 0;
     }
 
-    public int GetSize()
-    {
-        return _size;
-    }
-    
     public static int GetBinarySize()
     {
         return MaxSize * sizeof(int) + (MaxSize + 1) * sizeof(int) + sizeof(int) + sizeof(bool);
@@ -45,9 +38,6 @@ public class IndexNode: DataBaseNode
             index += sizeof(int);
         }
 
-        if (_size == 0 && this is not RootNode)
-            return nodeInBytes;
-        
         for (int i = 0; i < _size+1; i++)
         {
             BitConverter.GetBytes(_childPointers[i]).CopyTo(nodeInBytes, index);
@@ -77,16 +67,16 @@ public class IndexNode: DataBaseNode
         return needToSplit;
     }
 
-    public override bool Delete(int pointer)
-    {
-        bool needToMerge = _size <= MinSize;
 
-        int key = FindKey(pointer);
+
+    public void DeleteKeyByPointers(int firstPointer, int secondPointer)
+    {
+        int key = FindKey(firstPointer, secondPointer);
         _intermidiateKeys.Remove(key);
-        _childPointers.Remove(pointer);
+        _childPointers.Remove(secondPointer);
         _size--;
-        return needToMerge;
     }
+
 
     public override int StealFromSibling(DataBaseNode siblingNode, bool isRightSibling, int SplitKey)
     {
@@ -150,13 +140,12 @@ public class IndexNode: DataBaseNode
         _intermidiateKeys.Add(key);
     }
 
-    public virtual int FindKey(int pointer)
+    public virtual int FindKey(int firstPointer, int secondPointer)
     {
-        int index = _childPointers.IndexOf(pointer);
-        if (index == _childPointers.Count - 1)
-            return _intermidiateKeys.Last();
-
-        return _intermidiateKeys.ElementAt(index);
+        int firstIndex = _childPointers.IndexOf(firstPointer);
+        int secondIndex = _childPointers.IndexOf(secondPointer);
+        int keyIndex = (int)Math.Floor((double)(firstIndex + secondIndex) / 2);
+        return _intermidiateKeys.ElementAt(keyIndex);
     }
     
     public virtual int FindPointer(int key)
@@ -208,26 +197,23 @@ public class IndexNode: DataBaseNode
         IndexNode secondNode = new IndexNode(secondNodeData, secondNodePointers, secondNodeData.Count);
         return new SplitResults<DataBaseNode>(false, middleElement, this, secondNode);
     }
-    public override bool CanSplit()
-    {
-        return _size > MinSize;
-    }
-    
+
     public override void MergeWith(DataBaseNode siblingNode, int key, bool isRightSibling)
     {
         IndexNode sibling = (IndexNode)siblingNode;
         _intermidiateKeys = new SortedSet<int>(_intermidiateKeys.Union(sibling._intermidiateKeys));
         _intermidiateKeys.Add(key);
-        sibling._childPointers.Reverse();
+        if (!isRightSibling)
+            sibling._childPointers.Reverse();
         foreach (var pointer in sibling._childPointers)
         {
             if (isRightSibling)
             {
-                _childPointers.Insert(0, pointer);
+                _childPointers.Add(pointer);
             }
             else
             {
-                _childPointers.Add(pointer);
+                _childPointers.Insert(0, pointer);
             }
         }
         _size = _intermidiateKeys.Count;
