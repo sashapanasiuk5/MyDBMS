@@ -2,7 +2,7 @@
 
 public class Database
 {
-    public IndexetedStructure _indexedStructure;
+    private List<Table> _tables;
     private Stream _dbFile;
 
     public void Close()
@@ -13,32 +13,46 @@ public class Database
     public Database(string filename)
     {
         _dbFile = File.Open(filename, FileMode.Open);
-        _indexedStructure = new IndexetedStructure(_dbFile);
-        _indexedStructure.Init();
+        
+        /*_indexedStructure = new IndexetedStructure(_dbFile);
+        _indexedStructure.Init();*/
     }
 
-    private Database(FileStream stream, IndexetedStructure structure)
+    private Database(FileStream stream)
     {
         _dbFile = stream;
-        _indexedStructure = structure;
+        _tables = new List<Table>();
     }
 
     public static Database Create(string filename)
     {
         FileStream _dbFile = File.Open(filename, FileMode.Create);
-        IndexetedStructure indexedStructure = new IndexetedStructure(_dbFile);
-        indexedStructure.Create();
-        return new Database(_dbFile, indexedStructure);
+        /*IndexetedStructure indexedStructure = new IndexetedStructure(_dbFile);
+        indexedStructure.Create();*/
+        return new Database(_dbFile);
     }
 
+    public void CreateTable(Dictionary<string, IDataType> template)
+    {
+        IndexetedStructure index = new IndexetedStructure(_dbFile, template, 79,48);
+        index.Create();
+        Table table = new Table(template, index);
+        _tables.Add(table);
+    }
+
+    public void InsertIntoTable(Dictionary<string, object> values)
+    {
+        _tables[0].InsertValues(values);
+    }
+/*
     public void AddRecord(int key, int value) => _indexedStructure.Add(new Record(key, value));
 
     public void Delete(int key) => _indexedStructure.Delete(key);
 
     public Record Find(int key) => _indexedStructure.Find(key);
-
-    public void Print()
+*/
+    public void PrintTable()
     {
-        _indexedStructure.PrintAll();
+        _tables[0].Print();
     }
 }

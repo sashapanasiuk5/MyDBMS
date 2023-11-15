@@ -4,7 +4,7 @@ public class BalanceRootNodeStrategy:BalanceStrategy
 {
     private SetNewRoot _set;
     public delegate void SetNewRoot(DataBaseNode root);
-    public BalanceRootNodeStrategy(DataBaseReader reader, DataBaseWriter writer, SetNewRoot setRoot) : base(reader, writer)
+    public BalanceRootNodeStrategy(TableReader reader, TableWriter writer, SetNewRoot setRoot) : base(reader, writer)
     {
         _set = setRoot;
     }
@@ -33,6 +33,6 @@ public class BalanceRootNodeStrategy:BalanceStrategy
         int secondNodePointer = _writer.WriteNode(splitResults.SecondSplitNode);
         RootNode newRoot = new RootNode(firstNodePointer, secondNodePointer, splitResults.SplitKey);
         _set(newRoot);
-        return (false, new Record(0, 0));
+        return (false, null);
     }
 }

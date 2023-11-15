@@ -2,9 +2,9 @@
 
 public class BalanceStrategy:IBalanceStrategy
 {
-    protected DataBaseReader _reader;
-    protected DataBaseWriter _writer;
-    public BalanceStrategy(DataBaseReader reader, DataBaseWriter writer)
+    protected TableReader _reader;
+    protected TableWriter _writer;
+    public BalanceStrategy(TableReader reader, TableWriter writer)
     {
         _writer = writer;
         _reader = reader;

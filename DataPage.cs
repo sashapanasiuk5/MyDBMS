@@ -63,7 +63,8 @@ public class DataPage: DataBaseNode
     public override bool Add(Record record)
     {
         bool needToSplit = _size == MaxSize;
-        _data.Add(record.Key, record);
+        
+        _data.Add((int)record.GetValueAt(0), record);
         _size++;
         return needToSplit;
     }
@@ -102,21 +103,16 @@ public class DataPage: DataBaseNode
     {
         return _data.Last().Key;
     }
-
-    public override byte[] Serialize()
+    
+    public List<Record> GetData()
     {
-        byte[] bytes = new byte[GetBinarySize()];
-        BitConverter.GetBytes(_size).CopyTo(bytes,0);
-        int index = sizeof(int);
-
-        foreach (var item in _data)
+        List<Record> records = new List<Record>();
+        foreach (var record in _data)
         {
-            BitConverter.GetBytes(item.Key).CopyTo(bytes, index);
-            BitConverter.GetBytes(item.Value.Value).CopyTo(bytes, index+sizeof(int));
-            index += 2 * sizeof(int);
+            records.Add(record.Value);
         }
 
-        return bytes;
+        return records;
     }
 
 }

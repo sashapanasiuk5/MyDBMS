@@ -20,48 +20,27 @@ public class IndexNode: DataBaseNode
         _size = 0;
     }
 
-    public static int GetBinarySize()
-    {
-        return MaxSize * sizeof(int) + (MaxSize + 1) * sizeof(int) + sizeof(int) + sizeof(bool);
-    }
 
-    public override byte[] Serialize()
-    {
-        byte[] nodeInBytes = new byte[GetBinarySize()];
-        bool isRoot = this is RootNode;
-        BitConverter.GetBytes(isRoot).CopyTo(nodeInBytes, 0);
-        BitConverter.GetBytes(_size).CopyTo(nodeInBytes, sizeof(bool));
-        int index = sizeof(bool) + sizeof(int);
-        foreach (var item in _intermidiateKeys)
-        {
-            BitConverter.GetBytes(item).CopyTo(nodeInBytes, index);
-            index += sizeof(int);
-        }
+    public List<int> GetPointers() => _childPointers;
+    public SortedSet<int> GetKeys() => _intermidiateKeys;
 
-        for (int i = 0; i < _size+1; i++)
-        {
-            BitConverter.GetBytes(_childPointers[i]).CopyTo(nodeInBytes, index);
-            index += sizeof(int);
-        }
-
-        return nodeInBytes;
-    }
     public override bool Add(Record record)
     {
         bool needToSplit = _size == MaxSize;
+        int key = (int)record.GetValueAt(0);
+        int value = (int)record.GetValueAt(1);
+        _intermidiateKeys.Add(key);
         
-        _intermidiateKeys.Add(record.Key);
-        
-        int index = _intermidiateKeys.ToList().IndexOf(record.Key)+1;
+        int index = _intermidiateKeys.ToList().IndexOf(key)+1;
         
         _size++;
         if (index == _childPointers.Count)
         {
-            _childPointers.Add(record.Value);
+            _childPointers.Add(value);
         }
         else
         {
-            _childPointers.Insert(index,record.Value);  
+            _childPointers.Insert(index,value);  
         }
 
         return needToSplit;
@@ -235,4 +214,6 @@ public class IndexNode: DataBaseNode
             return (_childPointers[index - 1], _childPointers[index + 1]);
         }
     }
+    
+    
 }

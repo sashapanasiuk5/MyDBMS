@@ -20,8 +20,8 @@ public struct SplitResults<T>
 public class IndexetedStructure
 {
 
-    private DataBaseReader _reader;
-    private DataBaseWriter _writer;
+    private TableReader _reader;
+    private TableWriter _writer;
     public DataBaseNode _root;
     private bool _isRootDataPage;
     private int _rootPointer;
@@ -29,10 +29,10 @@ public class IndexetedStructure
 
 
 
-    public IndexetedStructure(Stream stream)
+    public IndexetedStructure(Stream stream, Dictionary<string, IDataType> template, int dataPageSize, int indexNodeSize)
     {
-        _writer = new DataBaseWriter(stream, 0, 1048576);
-        _reader = new DataBaseReader(stream);
+        _writer = new TableWriter(stream, 0, 1048576, indexNodeSize, dataPageSize);
+        _reader = new TableReader(stream, indexNodeSize, dataPageSize,template);
     }
 
     public void Init()
@@ -49,7 +49,7 @@ public class IndexetedStructure
     public void Add(Record record)
     {
         Stack<(IndexNode node, int pointer)> pagePath = new Stack<(IndexNode node, int pointer)>();
-        (DataBaseNode node, int nodePointer) = IndexSeek(record.Key, _root, _rootPointer, pagePath);
+        (DataBaseNode node, int nodePointer) = IndexSeek((int)record.GetValueAt(0), _root, _rootPointer, pagePath);
         
         bool needToBalance = false;
         do
@@ -117,8 +117,6 @@ public class IndexetedStructure
         DataPage page = IndexSeek(key, _root, _rootPointer,pagePath).page;
         
         Record record = page.Find(key);
-        if (record.Key != key)
-            throw new Exception("Record doesnt exist");
 
         foreach (var element in pagePath)
         {
@@ -228,9 +226,15 @@ public class IndexetedStructure
     public void PrintPage(DataPage page)
     {
         Console.WriteLine("-------------DATA PAGE-------------");
-        foreach (var pair in page._data)
+        foreach (var record in page._data)
         {
-            Console.WriteLine("Key: "+pair.Key+" Data: "+pair.Value.Value);
+            Console.Write("ID: ");
+            Console.WriteLine(record.Value.GetValueAt(0));
+            Console.Write("Price: ");
+            Console.WriteLine(record.Value.GetValueAt(1));
+            Console.Write("Code: ");
+            Console.WriteLine(record.Value.GetValueAt(2));
+            Console.WriteLine();
         }
         Console.WriteLine("-----------------------------------");
     }

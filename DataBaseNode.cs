@@ -2,7 +2,7 @@
 
 namespace DataBase_BTree;
 
-public abstract class DataBaseNode:IBinarySerializable
+public abstract class DataBaseNode
 {
     public const int Parameter=3;
     public const int MaxSize = 2 * Parameter - 1;
@@ -29,6 +29,5 @@ public abstract class DataBaseNode:IBinarySerializable
     public abstract void MergeWith(DataBaseNode siblingNode, int key, bool isRightSibling);
     public abstract SplitResults<DataBaseNode> Split();
     
-    public abstract byte[] Serialize();
 }
 

@@ -2,7 +2,7 @@
 
 public class BalanceDataPageStrategy:BalanceStrategy
 {
-    public BalanceDataPageStrategy(DataBaseReader reader, DataBaseWriter writer) : base(reader, writer)
+    public BalanceDataPageStrategy(TableReader reader, TableWriter writer) : base(reader, writer)
     {
     }
 
