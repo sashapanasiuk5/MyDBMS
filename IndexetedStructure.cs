@@ -4,20 +4,10 @@
 public struct SplitResults<T>
 {
     public bool IsRootNode { get; private set; }
-    //public bool WasNodeSplit { get; private set; }
     public int SplitKey { get; private set; }
     public T FirstSplitNode { get; private set; }
     public T SecondSplitNode { get; private set; }
-    //public int? SplitNodePointer { get; private set; }
 
-    /*public SplitResults(bool isRootNode, bool wasNodeSplit, int splitKey, int splitNodePointer)
-    {
-        IsRootNode = isRootNode;
-        WasNodeSplit = wasNodeSplit;
-        SplitKey = splitKey;
-        SplitNodePointer = splitNodePointer;
-    }*/
-    
     public SplitResults(bool isRootNode, int splitKey, T firstSplitNode, T secondSplitNode)
     {
         IsRootNode = isRootNode;
@@ -32,7 +22,10 @@ public class IndexetedStructure
 
     private DataBaseReader _reader;
     private DataBaseWriter _writer;
-    public IndexNode _root;
+    public DataBaseNode _root;
+    private bool _isRootDataPage;
+    private int _rootPointer;
+    private IBalanceStrategy _balanceStrategy;
 
 
 
@@ -49,71 +42,88 @@ public class IndexetedStructure
 
     public void Create()
     {
-        DataPage _firstDataPage = new DataPage();
-        int pointer = _writer.WriteNode(_firstDataPage);
-        _root = new RootNode(pointer);
-        _writer.WriteNode(_root);
+        _root = new DataPage();
+        _rootPointer = _writer.WriteNode(_root);
     }
 
     public void Add(Record record)
     {
         Stack<(IndexNode node, int pointer)> pagePath = new Stack<(IndexNode node, int pointer)>();
-        pagePath.Push((_root,0));
-        (DataBaseNode node, int nodePointer) = IndexSeek(record.Key, _root, pagePath);
-        bool isSplit = false;
+        (DataBaseNode node, int nodePointer) = IndexSeek(record.Key, _root, _rootPointer, pagePath);
+        
+        bool needToBalance = false;
         do
         {
-            (isSplit, int splitKey, int splitNodePointer) = AddToNode(record, node, nodePointer);
-            
-            if (isSplit)
+            node.Add(record);
+            needToBalance = NeedToBalance(node);
+            if (needToBalance)
             {
-                (node, nodePointer) = pagePath.Pop();
-                record = new Record(splitKey, splitNodePointer);
-            }
-        } while (isSplit);
-    }
-    
-    private (bool isSplit, int splitKey, int splitNodePointer) AddToNode(Record record,DataBaseNode node, int nodePointer)
-    {
-        bool needToSplit = node.Add(record);
-        if (needToSplit)
-        {
-            SplitResults<DataBaseNode> splitResults= node.Split();
-            if (splitResults.IsRootNode)
-            {
-                int firstNodePointer = _writer.WriteNode(splitResults.FirstSplitNode);
-                int secondNodePointer = _writer.WriteNode(splitResults.SecondSplitNode);
-                ((RootNode)node).AddSplitKey(splitResults.SplitKey, firstNodePointer, secondNodePointer);
-                _root = ((RootNode)node);
+                _balanceStrategy = ChooseStrategy(node);
+                (needToBalance, record) = _balanceStrategy.KeepBalanceAfterAdding(record, node, nodePointer);
+                if (needToBalance)
+                {
+                    (node, nodePointer) = pagePath.Pop();
+                }
             }
             else
             {
-                int splitedNodePointer = _writer.WriteNode(splitResults.SecondSplitNode);
                 _writer.WriteNode(node, nodePointer);
-                return (true, splitResults.SplitKey, splitedNodePointer);
             }
-        }
-        _writer.WriteNode(node, nodePointer);
-        return (false, 0, 0);
+        } while (needToBalance);
     }
-    private (DataPage page, int pointer) IndexSeek(int key, IndexNode node, Stack<(IndexNode node, int pointer)> path)
+    
+    public (DataPage page, int pointer) IndexSeek(int key, DataBaseNode node, int nodePointer, Stack<(IndexNode node, int pointer)> path)
     {
-        int pointer = node.FindPointer(key);
-        DataBaseNode nextNode = _reader.ReadNode(pointer);
-        if (nextNode is DataPage)
+        if (node is DataPage)
         {
-            return ((DataPage)nextNode, pointer);
+            return ((DataPage)node, nodePointer);
         }
-        path.Push(((IndexNode)nextNode, pointer));
-        return IndexSeek(key, (IndexNode)nextNode, path);
+        path.Push(((IndexNode)node, nodePointer));
+        int pointer = ((IndexNode)node).FindPointer(key);
+        DataBaseNode nextNode = _reader.ReadNode(pointer);
+        return IndexSeek(key, nextNode, pointer, path);
+    }
+
+    private IBalanceStrategy ChooseStrategy(DataBaseNode node)
+    {
+        if(node.Equals(_root))
+            return new BalanceRootNodeStrategy(_reader, _writer, (newRoot) =>
+            {
+                _root = newRoot;
+                if (_rootPointer == 0)
+                {
+                    _writer.WriteNode(newRoot, 0);
+                }
+                else
+                {
+                    _rootPointer = _writer.WriteNode(newRoot);
+                }
+            });
+        
+        switch (node)
+        {
+            case IndexNode indexNode:
+                return new BalanceIndexNodeStrategy(_reader, _writer);
+            case DataPage page:
+                return new BalanceDataPageStrategy(_reader, _writer);
+            default:
+                throw new Exception("This class is not supported");
+        }
     }
 
     public Record Find(int key)
     {
-        DataPage page = IndexSeek(key, _root, new Stack<(IndexNode,int)>()).page;
+        Stack<(IndexNode node, int pointer)> pagePath = new Stack<(IndexNode node, int pointer)>();
+        DataPage page = IndexSeek(key, _root, _rootPointer,pagePath).page;
+        
         Record record = page.Find(key);
         if (record.Key != key)
             throw new Exception("Record doesnt exist");
+
+        foreach (var element in pagePath)
+        {
+            DataBaseNode node = _reader.ReadNode(element.pointer);
+        }
         return record;
     }
     
@@ -123,116 +133,74 @@ public class IndexetedStructure
     public void Delete(int key)
     {
         Stack<(IndexNode node, int pointer)> pagePath = new Stack<(IndexNode node, int pointer)>();
-        pagePath.Push((_root,0));
-        (DataBaseNode node, int nodePointer) = IndexSeek(key,_root, pagePath);
+        (DataBaseNode node, int nodePointer) = IndexSeek(key,_root, 0, pagePath);
 
+        ((DataPage)node).Delete(key);
+        bool needToBalance = NeedToBalance(node);
+
+
+        IndexNode parentNode = null;
+        int parentPointer = 0;
         
-        (IndexNode parent, int parentPointer) = pagePath.Pop();
-        bool needToMerge = DeleteFromNode(key, node, nodePointer, parent, parentPointer);
+        if(pagePath.Count != 0)
+            ReplaceKeyInIndexNode((DataPage)node, key, new Stack<(IndexNode node, int pointer)>(pagePath));
         
-        while (needToMerge)
+        while (needToBalance)
         {
-            node = parent;
-            nodePointer = parentPointer;
-            (parent, parentPointer) = pagePath.Pop();
-            needToMerge = DeleteFromNode(key, node, nodePointer, parent, parentPointer);
-        }
-    }
-
-
-    private bool DeleteFromNode(int key, DataBaseNode node, int nodePointer, IndexNode nodeParent, int parentPointer)
-    {
-        bool needToMerge = true;
-        if(node is DataPage)
-            needToMerge = node.Delete(key);
-        if (needToMerge)
-        {
-            (bool result, DataBaseNode sibling, int siblingPointer, bool isRightSibling) = TryStealFromSibling( node, nodePointer, nodeParent, parentPointer);
-            if (result)
+            _balanceStrategy = ChooseStrategy(node);
+            if(pagePath.Count != 0)
+                (parentNode, parentPointer) = pagePath.Pop();
+            needToBalance = _balanceStrategy.KeepBalanceAfterDeleting(node, nodePointer, parentNode, parentPointer);
+            if (needToBalance)
             {
-                _writer.WriteNode(nodeParent, parentPointer);
-                needToMerge = false;
-            }
-            else
-            {
-                int splitKey = nodeParent.FindKey(nodePointer);
-                needToMerge = nodeParent.Delete(nodePointer);
-                sibling.MergeWith(node, splitKey, isRightSibling);
-                if (nodeParent is RootNode)
-                {
-                    _writer.WriteNode(sibling, 0);
-                    _root = new RootNode((IndexNode)sibling);
-                    needToMerge = false;
-                }
-                else
-                {
-                    _writer.WriteNode(sibling, siblingPointer);
-                    _writer.WriteNode(nodeParent, parentPointer);
-                }
+                node = parentNode;
+                nodePointer = parentPointer;
             }
         }
 
-        if (nodeParent.HasKey(key) && node is DataPage)
+        if (node is DataPage)
         {
-            nodeParent.ReplaceKey(key, ((DataPage)node).GetLastKey());
-            _writer.WriteNode(nodeParent, parentPointer);
+            _writer.WriteNode(node, nodePointer);
         }
-
-        _writer.WriteNode(node, nodePointer);
-        return needToMerge;
     }
 
-    private (bool isStolen, DataBaseNode sibling, int pointer,bool isRightSibling) TryStealFromSibling(DataBaseNode node, int nodePointer, IndexNode nodeParent, int parentPointer)
+    private void ReplaceKeyInIndexNode(DataPage page, int key, Stack<(IndexNode node, int pointer)> pagePath)
     {
-        (int? leftSiblingPointer, int? rightSiblingPointer) = nodeParent.GetPointerSiblings(nodePointer);
-        DataBaseNode chosenSibling = null;
-        int chosenPointer = 0;
-        bool isRightSibling = false;
-        bool canSteel = false;
-        
-        
-        if (leftSiblingPointer.HasValue)
+        (IndexNode parentNode, int parentPointer) = pagePath.Pop();
+        if (parentNode.HasKey(key))
         {
-            DataBaseNode leftSibling = _reader.ReadNode(leftSiblingPointer.Value);
-            chosenSibling = leftSibling;
-            chosenPointer = leftSiblingPointer.Value;
-            if (leftSibling.CanSplit())
-                canSteel = true;
+            parentNode.ReplaceKey(key, page.GetLastKey());
+            _writer.WriteNode(parentNode, parentPointer);
         }
-        
-        if (rightSiblingPointer.HasValue)
+        else if(pagePath.Count != 0)
         {
-            DataBaseNode rightSibling = _reader.ReadNode(rightSiblingPointer.Value);
-            chosenSibling = rightSibling;
-            chosenPointer = rightSiblingPointer.Value;
-            isRightSibling = true;
-            if (rightSibling.CanSplit())
-                canSteel = true;
+            ReplaceKeyInIndexNode(page, key, pagePath);
         }
-
-        if (canSteel)
-        {
-            int SplitKey = 0;
-            if (node is IndexNode)
-                SplitKey = nodeParent.FindKey(nodePointer);
-            int newKey = node.StealFromSibling(chosenSibling, isRightSibling, SplitKey);
-            nodeParent.SetNewKey(chosenPointer, nodePointer, newKey);
-            _writer.WriteNode(chosenSibling, chosenPointer);
-        }
-
-        return (canSteel, chosenSibling, chosenPointer, isRightSibling);
     }
-    
-    
-    
-    
-    
-    
-    
-    
+
+    private bool NeedToBalance(DataBaseNode node)
+    {
+        if (node.Equals(_root))
+        {
+            return (node.GetSize() < 0) || (node.GetSize() > 5);
+        }
+        else
+        {
+            return (node.GetSize() < 2) || (node.GetSize() > 5);
+        }
+    }
+
     public void PrintAll()
     {
-        PrintNode(_root);
+        if (_root is DataPage)
+        {
+            PrintPage((DataPage)_root);
+        }
+        else
+        {
+            PrintNode((RootNode)_root);
+        }
+        
     }
 
     public void PrintNode(IndexNode node)
