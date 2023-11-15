@@ -2,9 +2,11 @@
 
 public class IndexNodeParserStrategy:IParserStrategy
 {
-    public object Parse(byte[] bytes)
+    public object Parse(Stream stream)
     {
-        int size = BitConverter.ToInt32(bytes);
+        byte[] intBuffer = new byte[sizeof(int)];
+        stream.Read(intBuffer);
+        int size = BitConverter.ToInt32(intBuffer);
         SortedSet<int> intermediateKeys = new SortedSet<int>();
         List<int> childPointers = new List<int>();
 
@@ -14,14 +16,16 @@ public class IndexNodeParserStrategy:IParserStrategy
             
             for (int i = 0; i < size; i++)
             {
-                int key = BitConverter.ToInt32(bytes, startIndex);
+                stream.Read(intBuffer);
+                int key = BitConverter.ToInt32(intBuffer);
                 intermediateKeys.Add(key);
                 startIndex += sizeof(int);
             }
         
             for (int i = 0; i < size+1; i++)
             {
-                int pointer = BitConverter.ToInt32(bytes, startIndex);
+                stream.Read(intBuffer);
+                int pointer = BitConverter.ToInt32(intBuffer);
                 startIndex += sizeof(int);
                 childPointers.Add(pointer);
             }

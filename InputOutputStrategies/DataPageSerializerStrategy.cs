@@ -2,32 +2,21 @@
 
 public class DataPageSerializerStrategy:ISerializerStrategy
 {
-    private int _binarySize;
-    public DataPageSerializerStrategy(int binarySize)
-    {
-        _binarySize = binarySize;
-    }
-    public byte[] Serialize(object obj)
+    public void Serialize(object obj, Stream stream)
     {
         DataPage page = (DataPage)obj;
-        byte[] bytes = new byte[_binarySize];
-        BitConverter.GetBytes(page.GetSize()).CopyTo(bytes,0);
-        int index = sizeof(int);
+        stream.Write(BitConverter.GetBytes(page.GetSize()));
+        
         foreach (var record in page.GetData())
         {
             foreach (var dataCell in record.GetDataCells())
             {
-                BitConverter.GetBytes(dataCell.IsNull).CopyTo(bytes,index);
-                index += sizeof(bool);
+                stream.Write(BitConverter.GetBytes(dataCell.IsNull));
                 if (!dataCell.IsNull)
                 {
-                    dataCell.Type.SerializeData(dataCell.Data).CopyTo(bytes, index);
+                    stream.Write(dataCell.Type.SerializeData(dataCell.Data));
                 }
-
-                index += dataCell.Type.GetTypeSize();
             }
         }
-
-        return bytes;
     }
 }

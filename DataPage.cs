@@ -5,16 +5,19 @@ namespace DataBase_BTree;
 public class DataPage: DataBaseNode
 {
     public SortedList<int, Record> _data;
-    public DataPage()
+    private int _indexOfKey;
+    public DataPage(int indexKeyField)
     {
         _size = 0;
         _data = new SortedList<int, Record>();
+        _indexOfKey = indexKeyField;
     }
 
-    public DataPage(SortedList<int, Record> data, int size)
+    public DataPage(SortedList<int, Record> data, int size, int indexOfKey)
     {
         _size = size;
         _data = data;
+        _indexOfKey = indexOfKey;
     }
 
     public override SplitResults<DataBaseNode> Split()
@@ -27,7 +30,7 @@ public class DataPage: DataBaseNode
         _data = new SortedList<int, Record>(_data.Take(middleIndex).ToDictionary(x => x.Key, x => x.Value));
         
         _size = middleIndex;
-        return new SplitResults<DataBaseNode>(false, middle, this, new DataPage(secondPageData, secondPageSize));
+        return new SplitResults<DataBaseNode>(false, middle, this, new DataPage(secondPageData, secondPageSize, _indexOfKey));
     }
 
     public override int StealFromSibling(DataBaseNode siblingNode, bool isRightSibling, int SplitKey)
@@ -64,7 +67,7 @@ public class DataPage: DataBaseNode
     {
         bool needToSplit = _size == MaxSize;
         
-        _data.Add((int)record.GetValueAt(0), record);
+        _data.Add((int)record.GetValueAt(_indexOfKey), record);
         _size++;
         return needToSplit;
     }

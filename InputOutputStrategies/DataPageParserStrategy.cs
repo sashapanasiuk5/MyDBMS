@@ -8,11 +8,16 @@ public class DataPageParserStrategy:IParserStrategy
     public DataPageParserStrategy(Dictionary<string, IDataType> template, int indexKeyField)
     {
         _template = template;
+        _indexKeyField = indexKeyField;
     }
-    public object Parse(byte[] bytes)
+    public object Parse(Stream stream)
     {
-        int size = BitConverter.ToInt32(bytes, 0);
-        int index = sizeof(int); 
+        byte[] intBuffer = new byte[sizeof(int)];
+        byte[] boolBuffer = new byte[sizeof(bool)];
+        stream.Read(intBuffer);
+        
+        int size = BitConverter.ToInt32(intBuffer);
+
         SortedList<int, Record> data = new SortedList<int, Record>();
         for (int i = 0; i < size; i++)
         {
@@ -22,15 +27,12 @@ public class DataPageParserStrategy:IParserStrategy
             foreach (var columnTemplate in _template)
             {
                 IDataType type = columnTemplate.Value;
-                int length = type.GetTypeSize();
-                byte[] dataCellBytes = new byte[length];
-
-                bool isNull = BitConverter.ToBoolean(bytes, index);
+                stream.Read(boolBuffer);
+                bool isNull = BitConverter.ToBoolean(boolBuffer);
                 object value = null;
                 if (!isNull)
                 {
-                    Array.Copy(bytes, index+sizeof(bool), dataCellBytes, 0, length);
-                    value = type.Parse(dataCellBytes);
+                    value = type.Parse(stream);
                     if (j == _indexKeyField)
                     {
                         key = (int)value;
@@ -40,11 +42,10 @@ public class DataPageParserStrategy:IParserStrategy
                 DataCell cell = new DataCell(type, value, isNull);
                 cells.Add(cell);
                 j++;
-                index += sizeof(bool) + length;
             }
             Record record = new Record(cells);
             data.Add(key, record);
         }
-        return new DataPage(data, size);
+        return new DataPage(data, size, _indexKeyField);
     }
 }

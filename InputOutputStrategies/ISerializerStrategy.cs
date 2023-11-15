@@ -2,5 +2,5 @@
 
 public interface ISerializerStrategy
 {
-    public byte[] Serialize(object obj);
+    public void Serialize(object obj, Stream stream);
 }

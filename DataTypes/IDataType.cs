@@ -4,7 +4,7 @@ public interface IDataType
 {
     public byte[] SerializeData(object data);
 
-    public object Parse(byte[] binaryData);
+    public object Parse(Stream stream);
 
     public int GetTypeSize();
 }

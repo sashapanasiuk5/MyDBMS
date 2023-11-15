@@ -1,4 +1,6 @@
-﻿namespace DataBase_BTree;
+﻿using System.Text;
+
+namespace DataBase_BTree;
 
 public class CharType:IDataType
 {
@@ -10,12 +12,14 @@ public class CharType:IDataType
 
     public byte[] SerializeData(object data)
     {
-        return BitConverter.GetBytes((string)data);
+        return Encoding.UTF8.GetBytes((string)data);
     }
 
-    public object Parse(byte[] binaryData)
+    public object Parse(Stream stream)
     {
-        return BitConverter.ToString(binaryData);
+        byte[] stringBuffer = new byte[_length];
+        stream.Read(stringBuffer);
+        return System.Text.Encoding.UTF8.GetString(stringBuffer, 0, _length);
     }
 
     public int GetTypeSize()

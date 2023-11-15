@@ -1,4 +1,6 @@
-﻿namespace DataBase_BTree;
+﻿using System.Text;
+
+namespace DataBase_BTree;
 
 public class VarcharType:IDataType
 {
@@ -10,16 +12,26 @@ public class VarcharType:IDataType
     }
     public byte[] SerializeData(object data)
     {
-        throw new NotImplementedException();
+        int size = ((string)data).Length;
+        byte[] bytes = new byte[size + sizeof(int)];
+        BitConverter.GetBytes(size).CopyTo(bytes,0);
+        Encoding.UTF8.GetBytes((string)data).CopyTo(bytes,sizeof(int));
+        return bytes;
     }
 
-    public object Parse(byte[] binaryData)
+    public object Parse(Stream stream)
     {
-        throw new NotImplementedException();
+        byte[] intBuffer = new byte[sizeof(int)];
+        stream.Read(intBuffer);
+        int size = BitConverter.ToInt32(intBuffer);
+
+        byte[] stringBuffer = new byte[size];
+        stream.Read(stringBuffer);
+        return Encoding.UTF8.GetString(stringBuffer, 0, size);
     }
 
     public int GetTypeSize()
     {
-        throw new NotImplementedException();
+        return _length + sizeof(int);
     }
 }

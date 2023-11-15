@@ -4,6 +4,7 @@ public class Database
 {
     private List<Table> _tables;
     private Stream _dbFile;
+    private int parameter = 3;
 
     public void Close()
     {
@@ -32,9 +33,10 @@ public class Database
         return new Database(_dbFile);
     }
 
-    public void CreateTable(Dictionary<string, IDataType> template)
+    public void CreateTable(Dictionary<string, IDataType> template, int indexOfKey)
     {
-        IndexetedStructure index = new IndexetedStructure(_dbFile, template, 79,48);
+        
+        IndexetedStructure index = new IndexetedStructure(_dbFile, template, indexOfKey);
         index.Create();
         Table table = new Table(template, index);
         _tables.Add(table);

@@ -2,5 +2,5 @@
 
 public interface IParserStrategy
 {
-    public object Parse(byte[] bytes);
+    public object Parse(Stream stream);
 }

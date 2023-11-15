@@ -13,7 +13,7 @@ public class TableWriter
     private int _indexNodeSize;
     private int _dataPageSize;
 
-    public TableWriter(Stream stream, int startOfIndexArea, int startOfDataPageArea, int indexNodeSize, int dataPageSize)
+    public TableWriter(Stream stream, int startOfIndexArea, int startOfDataPageArea)
     {
         _stream = stream;
         _startOfIndexArea = startOfIndexArea;
@@ -21,8 +21,6 @@ public class TableWriter
         _startOfDataPageArea = startOfDataPageArea;
         _endOfDataPageArea = startOfDataPageArea;
 
-        _indexNodeSize = indexNodeSize;
-        _dataPageSize = dataPageSize;
     }
     
     public int WriteNode(DataBaseNode node)
@@ -32,9 +30,8 @@ public class TableWriter
         _stream.Seek(nodePointer, SeekOrigin.Begin);
         
         ISerializerStrategy serializerStrategy = ChooseStrategy(node);
-        byte[] bytes = serializerStrategy.Serialize(node);
         _stream.Write(BitConverter.GetBytes(isDataPage));
-        _stream.Write(bytes);
+        serializerStrategy.Serialize(node, _stream);
 
         if (isDataPage)
         {
@@ -50,10 +47,10 @@ public class TableWriter
     {
         bool isDataPage = node is DataPage;
         ISerializerStrategy serializerStrategy = ChooseStrategy(node);
-        byte[] bytes = serializerStrategy.Serialize(node);
+        
         _stream.Seek(pointer, SeekOrigin.Begin);
         _stream.Write(BitConverter.GetBytes(isDataPage));
-        _stream.Write(bytes);
+        serializerStrategy.Serialize(node, _stream);
         return pointer;
     }
 
@@ -62,10 +59,10 @@ public class TableWriter
         switch (node)
         {
             case IndexNode indexNode:
-                return new IndexNodeSerializerStrategy(_indexNodeSize);
+                return new IndexNodeSerializerStrategy();
                 break;
             case DataPage page:
-                return new DataPageSerializerStrategy(_dataPageSize);
+                return new DataPageSerializerStrategy();
             default:
                 throw new Exception("Node is not supported");
         }

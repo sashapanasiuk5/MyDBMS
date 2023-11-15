@@ -7,9 +7,11 @@ public class IntegerType: IDataType
         return BitConverter.GetBytes((int)data);
     }
 
-    public object Parse(byte[] binaryData)
+    public object Parse(Stream stream)
     {
-        return BitConverter.ToInt32(binaryData);
+        byte[] intBuffer = new byte[sizeof(int)];
+        stream.Read(intBuffer);
+        return BitConverter.ToInt32(intBuffer);
     }
 
     public int GetTypeSize()

@@ -27,12 +27,14 @@ public class IndexetedStructure
     private int _rootPointer;
     private IBalanceStrategy _balanceStrategy;
 
+    private int _indexOfKey;
 
 
-    public IndexetedStructure(Stream stream, Dictionary<string, IDataType> template, int dataPageSize, int indexNodeSize)
+    public IndexetedStructure(Stream stream, Dictionary<string, IDataType> template, int indexKeyField)
     {
-        _writer = new TableWriter(stream, 0, 1048576, indexNodeSize, dataPageSize);
-        _reader = new TableReader(stream, indexNodeSize, dataPageSize,template);
+        _writer = new TableWriter(stream, 0, 1048576);
+        _reader = new TableReader(stream,template, indexKeyField);
+        _indexOfKey = indexKeyField;
     }
 
     public void Init()
@@ -42,14 +44,14 @@ public class IndexetedStructure
 
     public void Create()
     {
-        _root = new DataPage();
+        _root = new DataPage(_indexOfKey);
         _rootPointer = _writer.WriteNode(_root);
     }
 
     public void Add(Record record)
     {
         Stack<(IndexNode node, int pointer)> pagePath = new Stack<(IndexNode node, int pointer)>();
-        (DataBaseNode node, int nodePointer) = IndexSeek((int)record.GetValueAt(0), _root, _rootPointer, pagePath);
+        (DataBaseNode node, int nodePointer) = IndexSeek((int)record.GetValueAt(_indexOfKey), _root, _rootPointer, pagePath);
         
         bool needToBalance = false;
         do
@@ -232,7 +234,7 @@ public class IndexetedStructure
             Console.WriteLine(record.Value.GetValueAt(0));
             Console.Write("Price: ");
             Console.WriteLine(record.Value.GetValueAt(1));
-            Console.Write("Code: ");
+            Console.Write("Name: ");
             Console.WriteLine(record.Value.GetValueAt(2));
             Console.WriteLine();
         }

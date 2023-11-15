@@ -8,18 +8,19 @@ public class TableReader
     
     private int _indexNodeSize;
     private int _dataPageSize;
+
+    private int _indexKeyField;
     
     private Dictionary<string, IDataType> _template;
-    public TableReader(Stream stream, int indexNodeSize, int dataPageSize, Dictionary<string, IDataType> template)
+    public TableReader(Stream stream, Dictionary<string, IDataType> template, int indexKeyField)
     {
         _stream = stream;
         _template = template;
-        _indexNodeSize = indexNodeSize;
-        _dataPageSize = dataPageSize;
+        _indexKeyField = indexKeyField;
     }
     public DataBaseNode ReadNode(int position)
     {
-        byte[] nodeInBytes;
+        List<byte> bytes = new List<byte>();
         _stream.Seek(position, SeekOrigin.Begin);
         
         byte[] isPageBuffer = new byte[sizeof(bool)];
@@ -30,18 +31,14 @@ public class TableReader
         IParserStrategy parserStrategy;
         if (!isDataPage)
         {
-            nodeInBytes = new byte[_indexNodeSize];
-            _stream.Read(nodeInBytes);
             parserStrategy = new IndexNodeParserStrategy();
         }
         else
         {
-            nodeInBytes = new byte[_dataPageSize];
-            _stream.Read(nodeInBytes);
-            parserStrategy = new DataPageParserStrategy(_template, 0);
+            parserStrategy = new DataPageParserStrategy(_template, _indexKeyField);
         }
 
-        return (DataBaseNode)parserStrategy.Parse(nodeInBytes);
+        return (DataBaseNode)parserStrategy.Parse(_stream);
     } 
     
     
