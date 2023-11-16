@@ -7,4 +7,8 @@ public interface IDataType
     public object Parse(Stream stream);
 
     public int GetTypeSize();
+
+    public IDataType Clone();
+
+    public int GetTypeArgument();
 }

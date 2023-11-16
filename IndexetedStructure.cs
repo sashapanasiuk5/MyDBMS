@@ -16,30 +16,36 @@ public struct SplitResults<T>
         SecondSplitNode = secondSplitNode;
     }
 }
-
 public class IndexetedStructure
 {
 
     private TableReader _reader;
     private TableWriter _writer;
     public DataBaseNode _root;
+
+    public event EventHandler OnRootRelocated;
     private bool _isRootDataPage;
     private int _rootPointer;
     private IBalanceStrategy _balanceStrategy;
 
     private int _indexOfKey;
-
-
-    public IndexetedStructure(Stream stream, Dictionary<string, IDataType> template, int indexKeyField)
+    private int _indexAreaPointer;
+    private int _indexAreaSize;
+    
+    public IndexetedStructure(Stream stream, Dictionary<string, IDataType> template, int indexKeyField, int indexAreaPointer, int indexAreaSize, int rootPointer=0)
     {
-        _writer = new TableWriter(stream, 0, 1048576);
+        _writer = new TableWriter(stream, indexAreaPointer, indexAreaSize);
         _reader = new TableReader(stream,template, indexKeyField);
         _indexOfKey = indexKeyField;
+        _indexAreaPointer = indexAreaPointer;
+        _indexAreaSize = indexAreaSize;
+        _rootPointer = rootPointer;
+
     }
 
     public void Init()
     {
-        _root = (RootNode)_reader.ReadNode(0);
+        _root = _reader.ReadNode(_rootPointer);
     }
 
     public void Create()
@@ -47,6 +53,11 @@ public class IndexetedStructure
         _root = new DataPage(_indexOfKey);
         _rootPointer = _writer.WriteNode(_root);
     }
+
+    public int GetIndexOfKey() => _indexOfKey;
+    public int GetPointer() => _indexAreaPointer;
+    public int GetSize() => _indexAreaSize;
+    public int GetRootPointer() => _rootPointer;
 
     public void Add(Record record)
     {
@@ -94,12 +105,13 @@ public class IndexetedStructure
                 _root = newRoot;
                 if (_rootPointer == 0)
                 {
-                    _writer.WriteNode(newRoot, 0);
+                    _rootPointer = _writer.WriteNode(newRoot, _indexAreaPointer);
                 }
                 else
                 {
                     _rootPointer = _writer.WriteNode(newRoot);
                 }
+                OnRootRelocated?.Invoke(this, new EventArgs());
             });
         
         switch (node)
@@ -198,7 +210,7 @@ public class IndexetedStructure
         }
         else
         {
-            PrintNode((RootNode)_root);
+            PrintNode((IndexNode)_root);
         }
         
     }

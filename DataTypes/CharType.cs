@@ -10,6 +10,11 @@ public class CharType:IDataType
         _length = length;
     }
 
+    public IDataType Clone()
+    {
+        return new CharType(_length);
+    }
+
     public byte[] SerializeData(object data)
     {
         return Encoding.UTF8.GetBytes((string)data);
@@ -21,6 +26,7 @@ public class CharType:IDataType
         stream.Read(stringBuffer);
         return System.Text.Encoding.UTF8.GetString(stringBuffer, 0, _length);
     }
+    public int GetTypeArgument() => _length;
 
     public int GetTypeSize()
     {

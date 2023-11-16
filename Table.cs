@@ -33,6 +33,12 @@ public class Table
         _indexetedStructure.Add(record);
     }
 
+    public Dictionary<string, IDataType> GetTemplate() => _template;
+    public int GetIndexOfKey() => _indexetedStructure.GetIndexOfKey();
+    public int GetIndexStructurePointer() => _indexetedStructure.GetPointer();
+    public int GetIndexStructureSize() => _indexetedStructure.GetSize();
+    public int GetRootNodePointer() => _indexetedStructure.GetRootPointer();
+
     public void Print()
     {
         _indexetedStructure.PrintAll();

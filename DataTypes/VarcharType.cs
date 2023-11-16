@@ -10,6 +10,10 @@ public class VarcharType:IDataType
     {
         _length = length;
     }
+    public IDataType Clone()
+    {
+        return new VarcharType(_length);
+    }
     public byte[] SerializeData(object data)
     {
         int size = ((string)data).Length;
@@ -29,6 +33,8 @@ public class VarcharType:IDataType
         stream.Read(stringBuffer);
         return Encoding.UTF8.GetString(stringBuffer, 0, size);
     }
+
+    public int GetTypeArgument() => _length;
 
     public int GetTypeSize()
     {

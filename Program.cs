@@ -4,17 +4,14 @@ using System.Runtime.Serialization.Formatters.Binary;
 using DataBase_BTree;
 using DataBase_BTree.InputOutputStrategies;
 
-//Database db = new Database("test.data");
-Database db = Database.Create("test.data");
+Database db = new Database("test.data");
+/*Database db = Database.Create("test.data");
 
 Dictionary<string, IDataType> template = new Dictionary<string, IDataType>();
 template.Add("ID", new IntegerType());
 template.Add("Price", new IntegerType());
 template.Add("Name", new VarcharType(10));
-db.CreateTable(template, 1);
-
-Type myType = typeof(string);
-SortedSet<>
+db.CreateTable("Products",template, 1);
 
 Dictionary<string, object> values = new Dictionary<string, object>();
 /*int price, code, id;
@@ -31,45 +28,58 @@ for (int i = 0; i < 6; i++)
     values.Add("Code", code);
     db.InsertIntoTable(values);
     values.Clear();
-}*/
+}
+*/
 
+/*
 values.Add("ID", 5);
 values.Add("Price", 120);
 values.Add("Name", "Product1");
-db.InsertIntoTable(values);
+db.InsertIntoTable("Products",values);
 values.Clear();
 
 values.Add("ID", 9);
 values.Add("Price", 45);
 values.Add("Name", "Product2");
-db.InsertIntoTable(values);
+db.InsertIntoTable("Products",values);
 values.Clear();
 
 values.Add("ID", 4);
 values.Add("Price", 118);
 values.Add("Name", "Product3");
-db.InsertIntoTable(values);
+db.InsertIntoTable("Products",values);
 values.Clear();
 
 
 values.Add("ID", 2);
 values.Add("Price", 140);
 values.Add("Name", "Product4");
-db.InsertIntoTable(values);
+db.InsertIntoTable("Products",values);
 values.Clear();
 
 values.Add("ID", 1);
 values.Add("Price", 99);
 values.Add("Name", "Product5");
-db.InsertIntoTable(values);
+db.InsertIntoTable("Products",values);
 values.Clear();
 
 
 values.Add("ID", 6);
 values.Add("Price", 180);
 values.Add("Name", "Product6");
-db.InsertIntoTable(values);
+db.InsertIntoTable("Products",values);
 values.Clear();
+*/
+db.PrintTable("Products");
+db.Close();
+/*
+FileStream file = File.Open("test.data", FileMode.Open);
+while (file.Position != 1024)
+{
+    int val = file.ReadByte();
+    Console.WriteLine(val);
+}
+file.Close();*/
 /*
 
 values.Add("ID", 8);
@@ -172,5 +182,3 @@ values.Add("Code", 1);
 db.InsertIntoTable(values);
 values.Clear();
 */
-
-db.PrintTable();
